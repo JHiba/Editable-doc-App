@@ -4,6 +4,7 @@
 # But include these specific files
 !streamlit_app.py
 !requirements.txt
+!README.md
 !.gitignore
 
 # Python
