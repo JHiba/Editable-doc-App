@@ -5,37 +5,17 @@ from PIL import Image
 from docx import Document
 from docx.shared import Inches
 
-import os
-
-try:
-    import pytesseract
-    PYTESSERACT_AVAILABLE = True
-except ImportError:
-    PYTESSERACT_AVAILABLE = False
-
+import pytesseract
 from PIL import ImageEnhance
 
 st.set_page_config(page_title="Notes to Editable DOCX", page_icon="📄", layout="centered")
 
-def is_cloud_environment():
-    """Detect if running on Streamlit Cloud or if Tesseract is unavailable"""
-    # Check for Streamlit Cloud environment variables
-    is_cloud = (
-        os.getenv("STREAMLIT_SHARING_MODE") is not None or
-        os.getenv("STREAMLIT_RUNTIME_ENV") == "cloud"
-    )
-    return is_cloud or not PYTESSERACT_AVAILABLE
-
-# Note: Tesseract OCR is only available for local use
+# Note: You need to install Tesseract OCR separately
 # Download from: https://github.com/UB-Mannheim/tesseract/wiki
 # Or use: winget install UB-Mannheim.TesseractOCR
 
 def tesseract_extract(pil_img: Image.Image) -> str:
     """Extract text from image using Tesseract OCR"""
-    # Skip OCR if in cloud environment
-    if is_cloud_environment():
-        return ""
-    
     if pil_img.mode != "RGB":
         pil_img = pil_img.convert("RGB")
     
@@ -53,8 +33,19 @@ def tesseract_extract(pil_img: Image.Image) -> str:
         custom_config = r'--oem 3 --psm 6'
         text = pytesseract.image_to_string(pil_img, config=custom_config)
         return text.strip()
+    except pytesseract.TesseractNotFoundError:
+        st.error("""
+        ⚠️ **Tesseract OCR not installed!**
+        
+        Please install Tesseract OCR:
+        1. Run: `winget install UB-Mannheim.TesseractOCR`
+        2. Or download from: https://github.com/UB-Mannheim/tesseract/wiki
+        3. Restart this app after installation
+        """)
+        return "[Tesseract OCR not installed]"
     except Exception as e:
-        return ""
+        st.error(f"OCR Error: {str(e)}")
+        return f"[Error: {str(e)}]"
 
 def clean_text(text: str) -> str:
     # light cleanup, keeps it honest but less ugly
@@ -104,14 +95,7 @@ def build_docx(images, include_image=True, include_text=True):
 
 # ---------- UI ----------
 st.title("📄 Handwritten Notes → Editable DOCX")
-
-# Check if running in cloud environment
-on_cloud = is_cloud_environment()
-
-if on_cloud:
-    st.info("ℹ️ **Running in cloud mode** - OCR is disabled (Tesseract not available). You can still download images embedded in DOCX format.")
-else:
-    st.write("Upload your note images, keeps diagrams by embedding the original page image, and adds editable OCR text underneath.")
+st.write("Uploads your note images, keeps diagrams by embedding the original page image, and adds editable OCR text underneath.")
 
 uploaded = st.file_uploader(
     "Upload one or more images",
@@ -123,12 +107,7 @@ col1, col2 = st.columns(2)
 with col1:
     include_image = st.checkbox("Include original page image (preserves diagrams)", value=True)
 with col2:
-    include_text = st.checkbox(
-        "Include editable OCR text" + (" (local only)" if on_cloud else ""),
-        value=not on_cloud,
-        disabled=on_cloud,
-        help="OCR requires Tesseract which is only available locally" if on_cloud else "Extract text from images using OCR"
-    )
+    include_text = st.checkbox("Include editable OCR text", value=True)
 
 if uploaded:
     images = []
