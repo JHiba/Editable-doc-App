@@ -5,12 +5,23 @@ from PIL import Image
 from docx import Document
 from docx.shared import Inches
 
-import pytesseract
+import os
+
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+
 from PIL import ImageEnhance
 
 st.set_page_config(page_title="Notes to Editable DOCX", page_icon="📄", layout="centered")
 
-# Note: You need to install Tesseract OCR separately
+def is_streamlit_cloud():
+    """Detect if running on Streamlit Cloud"""
+    return os.getenv("STREAMLIT_SHARING_MODE") is not None or not PYTESSERACT_AVAILABLE
+
+# Note: You need to install Tesseract OCR separately for local use
 # Download from: https://github.com/UB-Mannheim/tesseract/wiki
 # Or use: winget install UB-Mannheim.TesseractOCR
 
@@ -106,8 +117,18 @@ uploaded = st.file_uploader(
 col1, col2 = st.columns(2)
 with col1:
     include_image = st.checkbox("Include original page image (preserves diagrams)", value=True)
+on_cloud = is_streamlit_cloud()
+
 with col2:
-    include_text = st.checkbox("Include editable OCR text", value=True)
+    include_text = st.checkbox(
+        "Include editable OCR text (local only)",
+        value=not on_cloud,
+        disabled=on_cloud
+    )
+
+if on_cloud:
+    st.info("OCR is disabled on Streamlit Cloud (system OCR not available).")
+
 
 if uploaded:
     images = []
