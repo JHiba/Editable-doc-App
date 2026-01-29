@@ -1,4 +1,4 @@
-#  Editable-doc-App: AI-Powered Image to Formatted DOCX
+#  Editable-doc-App: =Image to Formatted DOCX
 
 A professional document conversion application. This tool extracts text from images (handwritten or printed) while preserving basic formatting such as bold, italics, and paragraph alignment. 
 
