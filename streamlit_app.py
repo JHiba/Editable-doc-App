@@ -7,6 +7,7 @@ import streamlit as st
 from PIL import Image
 import mammoth  # Added for live preview
 from fpdf import FPDF
+import fitz  # PyMuPDF
 
 from docx import Document
 from docx.shared import Inches
@@ -27,6 +28,26 @@ def get_groq_client() -> Groq:
     if not api_key:
         raise RuntimeError("Missing GROQ_API_KEY. Set it in environment variables or Streamlit secrets.")
     return Groq(api_key=api_key)
+
+def process_uploaded_files(uploaded_files):
+    images = []
+    for f in uploaded_files:
+        if f.name.lower().endswith(".pdf"):
+            try:
+                # Convert PDF pages to PIL images using PyMuPDF (no external dependencies needed)
+                pdf_bytes = f.read()
+                pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                for page_num in range(len(pdf_doc)):
+                    page = pdf_doc.load_page(page_num)
+                    pix = page.get_pixmap(dpi=200) # High quality render
+                    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    images.append(img)
+            except Exception as e:
+                st.error(f"Failed to read PDF {f.name}: {str(e)}")
+                st.stop()
+        else:
+            images.append(Image.open(f))
+    return images
 
 def pil_to_data_url(pil_img: Image.Image) -> str:
     if pil_img.mode != "RGB":
@@ -280,10 +301,10 @@ if app_mode == "Phase 1 (Basic Tool)":
 
     include_page_image = st.checkbox("Include original page image", value=True, key="img_p1")
 
-    uploaded = st.file_uploader("Upload images", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="up_p1")
+    uploaded = st.file_uploader("Upload images or PDFs", type=["png", "jpg", "jpeg", "webp", "pdf"], accept_multiple_files=True, key="up_p1")
 
     if uploaded:
-        images = [Image.open(f) for f in uploaded]
+        images = process_uploaded_files(uploaded)
         st.divider()
 
         if st.button("Generate DOCX & PDF", type="primary", key="btn_p1"):
@@ -348,10 +369,10 @@ else:
     # User can still override, but Agent will suggest
     include_page_image = st.checkbox("Include original page image (Agent may override)", value=True, key="img_p2")
 
-    uploaded = st.file_uploader("Upload images", type=["png", "jpg", "jpeg", "webp"], accept_multiple_files=True, key="up_p2")
+    uploaded = st.file_uploader("Upload images or PDFs", type=["png", "jpg", "jpeg", "webp", "pdf"], accept_multiple_files=True, key="up_p2")
 
     if uploaded:
-        images = [Image.open(f) for f in uploaded]
+        images = process_uploaded_files(uploaded)
         st.divider()
 
         if "agent_analysis" not in st.session_state:
