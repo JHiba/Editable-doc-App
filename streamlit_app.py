@@ -21,6 +21,28 @@ from groq import Groq
 st.set_page_config(page_title="Image to Formatted DOCX ", page_icon="📄", layout="centered")
 
 # -------------------------
+# Long-Term Memory (Learn)
+# -------------------------
+MEMORY_FILE = "memory.json"
+
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_memory(feedback: str):
+    memory = load_memory()
+    memory.append({"role": "user", "feedback": feedback})
+    # Keep only the last 10 pieces of feedback to prevent token overflow
+    memory = memory[-10:]
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memory, f, indent=4)
+
+# -------------------------
 # Groq + Vision helpers
 # -------------------------
 def get_groq_client() -> Groq:
@@ -97,20 +119,27 @@ def groq_extract_layout(pil_img: Image.Image, model_id: str) -> dict:
     client = get_groq_client()
     data_url = pil_to_data_url(pil_img)
 
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT.strip()},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": USER_PROMPT.strip()},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ],
+        },
+    ]
+
+    memories = load_memory()
+    if memories:
+        memory_str = "\n".join([f"- {m['feedback']}" for m in memories])
+        messages[0]["content"] += f"\n\nCRITICAL PAST USER FEEDBACK (LEARN AND ADAPT):\n{memory_str}"
+
     for attempt in range(2):
         temperature = 0.2 if attempt == 0 else 0.0
         completion = client.chat.completions.create(
             model=model_id,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT.strip()},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": USER_PROMPT.strip()},
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                    ],
-                },
-            ],
+            messages=messages,
             response_format={"type": "json_object"},
             temperature=temperature,
             max_completion_tokens=2048,
@@ -150,18 +179,25 @@ def groq_agent_perceive(pil_img: Image.Image, model_id: str) -> dict:
     client = get_groq_client()
     data_url = pil_to_data_url(pil_img)
     
+    messages = [
+        {"role": "system", "content": AGENT_SYSTEM_PROMPT.strip()},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": AGENT_USER_PROMPT.strip()},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ],
+        },
+    ]
+
+    memories = load_memory()
+    if memories:
+        memory_str = "\n".join([f"- {m['feedback']}" for m in memories])
+        messages[0]["content"] += f"\n\nCRITICAL PAST USER FEEDBACK (LEARN AND ADAPT):\n{memory_str}"
+        
     completion = client.chat.completions.create(
         model=model_id,
-        messages=[
-            {"role": "system", "content": AGENT_SYSTEM_PROMPT.strip()},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": AGENT_USER_PROMPT.strip()},
-                    {"type": "image_url", "image_url": {"url": data_url}},
-                ],
-            },
-        ],
+        messages=messages,
         response_format={"type": "json_object"},
         temperature=0.1,
         max_completion_tokens=500,
@@ -287,7 +323,7 @@ def process_document(images, model_id: str, include_page_image: bool):
 # UI Logic
 # -------------------------
 st.sidebar.title("Mode Selection")
-app_mode = st.sidebar.radio("Choose Version:", ["Phase 1 (Basic Tool)", "Phase 2 (Agentic System)"])
+app_mode = st.sidebar.radio("Choose Version:", ["Phase 1 (Basic Tool)", "Phase 2 (Agentic System)", "NCEAC Ethics & Analysis"])
 
 if app_mode == "Phase 1 (Basic Tool)":
     st.title("📄 Image → Formatted DOCX (Phase 1)")
@@ -347,7 +383,7 @@ if app_mode == "Phase 1 (Basic Tool)":
     else:
         st.info("Upload images to start.")
 
-else:
+elif app_mode == "Phase 2 (Agentic System)":
     # Phase 2 Logic
     st.title("📄 Intelligent Agent: Image → DOCX (Phase 2)")
     st.write("An autonomous agent that perceives documents, considers ethical constraints (PII), and extracts text/formatting.")
@@ -358,6 +394,7 @@ else:
         **2. 🧠 Interpret:** Detect complex diagrams and sensitive PII.
         **3. ⚖️ Decide:** Auto-adjust settings (e.g. preserving original image for diagrams) and require human consent if PII is found.
         **4. ⚡ Act:** Extract text, preserve formatting, and generate final DOCX.
+        **5. 💡 Learn:** Update long-term memory based on human feedback to adapt future behavior.
         """)
 
     model_id = st.selectbox(
@@ -449,7 +486,55 @@ else:
                             )
                     except Exception as e:
                         st.error(f"Agent execution failed: {str(e)}")
+                        
+                # Step 5: Learn (Feedback Loop)
+                if 'agent_analysis' in st.session_state and st.session_state.agent_analysis:
+                    st.divider()
+                    st.subheader("💡 5. Agent: Learn (Long-Term Memory)")
+                    st.write("Provide feedback to the agent so it can adjust its future processing (e.g., 'Crop equations with more margin' or 'Ignore page numbers').")
+                    
+                    with st.form("feedback_form"):
+                        feedback = st.text_input("Your Feedback to the Agent:")
+                        submitted = st.form_submit_button("Commit to Memory")
+                        if submitted and feedback:
+                            save_memory(feedback)
+                            st.success("✅ Feedback committed to memory! The agent will use this context in future tasks.")
             else:
                 st.error("Agent execution paused: Awaiting human override for PII.")
     else:
         st.info("Upload images to start.")
+
+elif app_mode == "NCEAC Ethics & Analysis":
+    st.title("⚖️ Project Analysis & NCEAC Compliance")
+    st.write("This section details the technical, ethical, and legal frameworks embedded within this application, reflecting alignment with NCEAC learning domains.")
+
+    st.header("1. Technical Analysis & Industry Dynamics (CLO 8)")
+    st.markdown("""
+    **Software Industry Trends:** The industry is rapidly shifting from static machine learning models to autonomous Agentic AI. 
+    Phase 1 of this project relied on a static OCR pipeline (Perceive -> Output). Phase 2 transforms the architecture into a **Purely Agentic System** utilizing the OODA loop:
+    * **Observe:** Vision models parse the unstructured document.
+    * **Interpret & Decide:** The agent identifies constraints (e.g., complex diagrams vs text, PII presence) and dynamically alters its own execution path.
+    * **Act:** Cropping coordinates are generated and executed.
+    * **Learn:** User feedback is stored in Long-Term Memory (`memory.json`) to adjust future model system prompts.
+    """)
+
+    st.header("2. Professional Ethical Theories (CLO 4)")
+    st.markdown("""
+    **IEEE/ACM Code of Ethics Alignment:**
+    * **1.2 Avoid Harm:** The system employs a "Human-in-the-loop" mechanism. When the agent detects potential Personally Identifiable Information (PII) like names or SSNs, it intentionally pauses execution.
+    * **1.6 Respect Privacy:** By preventing the automatic extraction and storage of unrecognized PII, the system respects user confidentiality. Execution only resumes after explicit human override and consent.
+    """)
+
+    st.header("3. Privacy, Cyber Laws & PECA 2016 (CLO 6)")
+    st.markdown("""
+    **Data Protection & Compliance:**
+    * **PECA 2016:** The Prevention of Electronic Crimes Act (Pakistan) strictly prohibits unauthorized processing and retention of sensitive personal data. 
+    * **Secure Ephemeral Storage:** Uploaded files and generated PDF/DOCX documents are processed in-memory using `io.BytesIO()`. Temporary image crops are immediately securely deleted from the server (`os.unlink(tmp.name)`) preventing data leaks and ensuring compliance with national cybersecurity laws.
+    """)
+
+    st.header("4. Intellectual Property Rights (CLO 5)")
+    st.markdown("""
+    **IPR Protection Mechanisms:**
+    * **Model Attribution:** The application utilizes open-weights models (`meta-llama/llama-3.2-11b-vision-preview`) via the Groq API, abiding by the Llama community license.
+    * **Content Ownership:** Users retain full copyright over their uploaded handwritten documents and the subsequently generated DOCX/PDF files. The system does not use uploaded files to train or fine-tune models, protecting the user's intellectual property.
+    """)
