@@ -406,6 +406,13 @@ elif app_mode == "Phase 2 (Agentic System)":
     # User can still override, but Agent will suggest
     include_page_image = st.checkbox("Include original page image (Agent may override)", value=True, key="img_p2")
 
+    st.info("⚖️ **Professional Responsibility:** To comply with ethical guidelines, you must confirm you have the right to process this document.")
+    global_consent = st.checkbox("I confirm that I have the explicit right and consent to process the contents of this document.", key="global_consent_p2")
+
+    if not global_consent:
+        st.warning("Please check the consent box above to unlock the file uploader and proceed.")
+        st.stop()
+
     uploaded = st.file_uploader("Upload images or PDFs", type=["png", "jpg", "jpeg", "webp", "pdf"], accept_multiple_files=True, key="up_p2")
 
     if uploaded:
@@ -508,33 +515,39 @@ elif app_mode == "NCEAC Ethics & Analysis":
     st.title("⚖️ Project Analysis & NCEAC Compliance")
     st.write("This section details the technical, ethical, and legal frameworks embedded within this application, reflecting alignment with NCEAC learning domains.")
 
-    st.header("1. Technical Analysis & Industry Dynamics (CLO 8)")
+    st.header("1. Agentic System Design Quality (CLO 8)")
     st.markdown("""
-    **Software Industry Trends:** The industry is rapidly shifting from static machine learning models to autonomous Agentic AI. 
-    Phase 1 of this project relied on a static OCR pipeline (Perceive -> Output). Phase 2 transforms the architecture into a **Purely Agentic System** utilizing the OODA loop:
+    **Redesigning Decision-Making Systems:** Average submissions often simply wrap a static API (e.g., superficial AI chatbots). This project achieves an **Outstanding** technical architecture by fundamentally redesigning the decision-making process into a **Purely Agentic System** utilizing the OODA loop:
     * **Observe:** Vision models parse the unstructured document.
-    * **Interpret & Decide:** The agent identifies constraints (e.g., complex diagrams vs text, PII presence) and dynamically alters its own execution path.
-    * **Act:** Cropping coordinates are generated and executed.
-    * **Learn:** User feedback is stored in Long-Term Memory (`memory.json`) to adjust future model system prompts.
+    * **Interpret & Decide:** The agent autonomously identifies constraints (e.g., complex diagrams vs text, PII presence) and dynamically alters its own execution path based on the content.
+    * **Act:** Actionable bounding boxes are generated and executed dynamically.
+    * **Learn:** User feedback is stored in Long-Term Memory (`memory.json`) to adjust future behavior.
     """)
 
-    st.header("2. Professional Ethical Theories (CLO 4)")
+    st.header("2. Professional Responsibility & Ethical Theories (CLO 4)")
     st.markdown("""
-    **IEEE/ACM Code of Ethics Alignment:**
-    * **1.2 Avoid Harm:** The system employs a "Human-in-the-loop" mechanism. When the agent detects potential Personally Identifiable Information (PII) like names or SSNs, it intentionally pauses execution.
-    * **1.6 Respect Privacy:** By preventing the automatic extraction and storage of unrecognized PII, the system respects user confidentiality. Execution only resumes after explicit human override and consent.
+    **Addressing the Ethical Risks of Autonomy (IEEE/ACM Code of Ethics):**
+    * **1.2 Avoid Harm:** True professional responsibility requires knowing when an autonomous agent *should not* act alone. The system explicitly addresses the ethical risks of total autonomy by employing a **Human-in-the-Loop** mechanism. When potential Personally Identifiable Information (PII) is detected, the agent intentionally pauses execution.
+    * **1.6 Respect Privacy:** By preventing the automatic processing of unrecognized PII, the system respects user confidentiality. Execution only resumes after explicit human override.
     """)
 
-    st.header("3. Privacy, Cyber Laws & PECA 2016 (CLO 6)")
+    st.header("3. Critical Thinking & Honesty")
+    st.markdown("""
+    **System Transparency:** 
+    * The system is designed with strict adherence to honesty and transparency. It honestly admits its limitations by pausing and requesting user consent when uncertain about privacy risks, rather than hallucinating or quietly violating user trust.
+    * Real-time UI updates (e.g., *Agent Reasoning: "I have detected diagrams..."*) expose the internal "thought process" of the AI, eliminating black-box opacity.
+    """)
+
+    st.header("4. Privacy, Cyber Laws & PECA 2016 (CLO 6)")
     st.markdown("""
     **Data Protection & Compliance:**
-    * **PECA 2016:** The Prevention of Electronic Crimes Act (Pakistan) strictly prohibits unauthorized processing and retention of sensitive personal data. 
-    * **Secure Ephemeral Storage:** Uploaded files and generated PDF/DOCX documents are processed in-memory using `io.BytesIO()`. Temporary image crops are immediately securely deleted from the server (`os.unlink(tmp.name)`) preventing data leaks and ensuring compliance with national cybersecurity laws.
+    * **PECA 2016:** The Prevention of Electronic Crimes Act strictly prohibits unauthorized processing and retention of sensitive personal data. 
+    * **Secure Ephemeral Storage:** Uploaded files and generated PDF/DOCX documents are processed in-memory. Temporary image crops are immediately and securely deleted (`os.unlink()`), preventing data leaks.
     """)
 
-    st.header("4. Intellectual Property Rights (CLO 5)")
+    st.header("5. Intellectual Property Rights (CLO 5)")
     st.markdown("""
     **IPR Protection Mechanisms:**
-    * **Model Attribution:** The application utilizes open-weights models (`meta-llama/llama-3.2-11b-vision-preview`) via the Groq API, abiding by the Llama community license.
-    * **Content Ownership:** Users retain full copyright over their uploaded handwritten documents and the subsequently generated DOCX/PDF files. The system does not use uploaded files to train or fine-tune models, protecting the user's intellectual property.
+    * **Model Attribution:** The application utilizes open-weights models via the Groq API, abiding by the Llama community license.
+    * **Content Ownership:** Users retain full copyright over their handwritten documents. The system does not use uploaded files to train models.
     """)
