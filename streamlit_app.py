@@ -386,6 +386,9 @@ if app_mode == "Phase 1 (Basic Tool)":
 elif app_mode == "Phase 2 (Agentic System)":
     # Phase 2 Logic
     st.title("📄 Intelligent Agent: Image → DOCX (Phase 2)")
+    st.info("This system represents a shift from a reactive tool to an intelligent agent that can perceive, decide, act, and learn.")
+    st.success("Agent Transformation: Tool → Agent | Reactive → Proactive")
+    
     st.write("An autonomous agent that perceives documents, considers ethical constraints (PII), and extracts text/formatting.")
 
     with st.expander("ℹ️ View Agentic Workflow", expanded=True):
